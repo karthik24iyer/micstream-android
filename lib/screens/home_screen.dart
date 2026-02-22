@@ -23,7 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _checkMicrophonePermission();
-    _ipController.text = '192.168.1.100'; // Default for manual mode
+    _ipController.text = '192.168.0.104'; // Default for manual mode
   }
 
   @override

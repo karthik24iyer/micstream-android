@@ -188,8 +188,9 @@ class AudioStreamProvider with ChangeNotifier {
 
   @override
   void dispose() {
-    _streamManager.dispose();
-    _discoveryService.dispose();
+    _streamManager.dispose().then((_) {
+      _discoveryService.dispose();
+    });
     super.dispose();
   }
 }

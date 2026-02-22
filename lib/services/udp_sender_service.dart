@@ -4,6 +4,7 @@ import 'package:udp/udp.dart';
 
 /// UdpSenderService - Sends audio packets via UDP
 /// Phase 1: [seq(4)][pcm_data] packet format
+/// Phase 3: [seq(4)][timestamp(4)][flags(1)][opus_data] packet format
 class UdpSenderService {
   UDP? _socket;
   String? _destinationAddress;
@@ -81,6 +82,61 @@ class UdpSenderService {
 
     } catch (e) {
       print('UdpSenderService: Error sending packet - $e');
+      return false;
+    }
+  }
+
+  /// Send Opus audio packet with extended header
+  /// Phase 3 format: [seq(4)][timestamp(4)][flags(1)][opus_data]
+  Future<bool> sendOpusPacket(Uint8List opusData) async {
+    if (!_isInitialized || _socket == null) {
+      print('UdpSenderService: Socket not initialized');
+      return false;
+    }
+
+    if (_destinationAddress == null) {
+      print('UdpSenderService: Destination not set');
+      return false;
+    }
+
+    try {
+      // Create packet: [seq(4)][timestamp(4)][flags(1)][opus_data]
+      final packet = BytesBuilder();
+
+      // Add sequence number (4 bytes, big-endian)
+      packet.add(_uint32ToBytes(_sequenceNumber));
+
+      // Add timestamp (milliseconds since Unix epoch, 4 bytes, big-endian)
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      packet.add(_uint32ToBytes(timestamp));
+
+      // Add flags (1 byte) - Bit 0: Noise suppression (0=disabled for Phase 3)
+      packet.addByte(0x00);
+
+      // Add Opus audio data
+      packet.add(opusData);
+
+      // Send via UDP
+      final endpoint = Endpoint.unicast(
+        InternetAddress(_destinationAddress!),
+        port: Port(_destinationPort),
+      );
+
+      final bytesSent = await _socket!.send(
+        packet.toBytes(),
+        endpoint,
+      );
+
+      if (bytesSent > 0) {
+        _sequenceNumber++;
+        return true;
+      } else {
+        print('UdpSenderService: Failed to send Opus packet');
+        return false;
+      }
+
+    } catch (e) {
+      print('UdpSenderService: Error sending Opus packet - $e');
       return false;
     }
   }

@@ -44,6 +44,10 @@ dependencies:
   # Phase 2 dependencies
   nsd: ^4.1.0                 # mDNS service discovery
 
+  # Phase 3 dependencies
+  opus_flutter: ^3.0.3        # Opus library loader
+  opus_dart: ^3.0.1           # Opus audio encoding
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

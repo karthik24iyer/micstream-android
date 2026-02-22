@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:opus_dart/opus_dart.dart';
+import 'package:opus_flutter/opus_flutter.dart' as opus_flutter;
 import 'providers/stream_provider.dart';
 import 'screens/home_screen.dart';
 
-/// MicStream - Phase 1: Basic UDP Streaming
-/// Streams raw PCM audio from Android to Windows PC
-void main() {
+/// MicStream - Phase 3: Opus Compressed Streaming
+/// Streams Opus-encoded audio from Android to Windows PC
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Opus library globally (once per app lifecycle)
+  try {
+    final lib = await opus_flutter.load();
+    initOpus(lib);
+    print('Opus library initialized successfully');
+  } catch (e) {
+    print('Failed to initialize Opus library: $e');
+  }
 
   // Set preferred orientations (portrait only)
   SystemChrome.setPreferredOrientations([
