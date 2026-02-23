@@ -50,63 +50,6 @@ class AudioStreamProvider with ChangeNotifier {
   /// Get streaming status
   bool get isStreaming => _connectionState == StreamConnectionState.connected;
 
-  /// Connect and start streaming
-  Future<bool> connect(String ipAddress) async {
-    if (_connectionState == StreamConnectionState.connected) {
-      return true;
-    }
-
-    // Validate IP address format
-    if (!_isValidIpAddress(ipAddress)) {
-      _errorMessage = 'Invalid IP address format';
-      notifyListeners();
-      return false;
-    }
-
-    _connectionState = StreamConnectionState.connecting;
-    _destinationAddress = ipAddress;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final success = await _streamManager.startStreaming(ipAddress);
-
-      if (success) {
-        _connectionState = StreamConnectionState.connected;
-        _startStatisticsUpdater();
-        notifyListeners();
-        return true;
-      } else {
-        _connectionState = StreamConnectionState.disconnected;
-        _errorMessage = 'Failed to start streaming';
-        notifyListeners();
-        return false;
-      }
-    } catch (e) {
-      _connectionState = StreamConnectionState.disconnected;
-      _errorMessage = 'Error: $e';
-      notifyListeners();
-      return false;
-    }
-  }
-
-  /// Validate IP address format (IPv4)
-  bool _isValidIpAddress(String ip) {
-    if (ip.isEmpty) return false;
-
-    final parts = ip.split('.');
-    if (parts.length != 4) return false;
-
-    for (final part in parts) {
-      final num = int.tryParse(part);
-      if (num == null || num < 0 || num > 255) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   /// Disconnect and stop streaming
   Future<void> disconnect() async {
     if (_connectionState == StreamConnectionState.disconnected) {
@@ -158,6 +101,8 @@ class AudioStreamProvider with ChangeNotifier {
       if (!_discoveredDevices.any((d) => d.host == device.host)) {
         _discoveredDevices.add(device);
         notifyListeners();
+        // Auto-stop scanning once a device is found
+        stopScanning();
       }
     };
 
@@ -175,15 +120,34 @@ class AudioStreamProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Connect to a discovered device (Phase 2)
+  /// Connect to a discovered device
   Future<bool> connectToDevice(DiscoveredDevice device) async {
-    // Stop scanning before connecting
+    if (_connectionState == StreamConnectionState.connected) return true;
+
     await stopScanning();
 
+    _connectionState = StreamConnectionState.connecting;
+    _destinationAddress = device.host;
     _destinationName = device.displayName;
+    _errorMessage = null;
+    notifyListeners();
 
-    // Connect using IP address
-    return await connect(device.host);
+    try {
+      final success = await _streamManager.startStreaming(device.host);
+      if (success) {
+        _connectionState = StreamConnectionState.connected;
+        _startStatisticsUpdater();
+      } else {
+        _connectionState = StreamConnectionState.disconnected;
+        _errorMessage = 'Failed to start streaming';
+      }
+    } catch (e) {
+      _connectionState = StreamConnectionState.disconnected;
+      _errorMessage = 'Error: $e';
+    }
+
+    notifyListeners();
+    return _connectionState == StreamConnectionState.connected;
   }
 
   @override

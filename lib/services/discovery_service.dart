@@ -1,68 +1,112 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'package:nsd/nsd.dart' as nsd;
 
-/// DiscoveryService - mDNS service discovery for Phase 2
+/// DiscoveryService - mDNS service discovery
 /// Discovers Windows PC broadcasting _micstream._udp.local service
-///
-/// NOTE: This is a stub implementation for Phase 2.
-/// The nsd package API will be properly integrated during testing.
 class DiscoveryService {
-  // Discovered services
   final List<DiscoveredDevice> _devices = [];
+  final Set<String> _resolving = {};
+  nsd.Discovery? _discovery;
 
-  /// Callback when a new device is discovered
   Function(DiscoveredDevice)? onDeviceDiscovered;
-
-  /// Callback when a device is lost
   Function(DiscoveredDevice)? onDeviceLost;
 
   bool _isScanning = false;
 
   /// Start scanning for MicStream services
-  /// TODO: Implement with proper nsd package API during testing
   Future<bool> startDiscovery() async {
-    if (_isScanning) {
-      print('DiscoveryService: Already scanning');
-      return true;
-    }
+    if (_isScanning) return true;
+
+    _devices.clear();
+    _resolving.clear();
 
     try {
+      _discovery = await nsd.startDiscovery('_micstream._udp');
+      _discovery!.addListener(_onServicesChanged);
       _isScanning = true;
-      print('DiscoveryService: Started scanning for _micstream._udp.local');
-      print('DiscoveryService: Note - nsd integration pending, use Manual IP mode for now');
-
-      // TODO: Implement actual nsd discovery when Windows server is ready
-      // For now, this is a placeholder that compiles
-
+      print('DiscoveryService: Scanning for _micstream._udp.local');
       return true;
-
     } catch (e) {
-      print('DiscoveryService: Failed to start discovery - $e');
+      print('DiscoveryService: Failed to start - $e');
       return false;
     }
   }
 
+  void _onServicesChanged() {
+    final discovery = _discovery;
+    if (discovery == null) return;
+
+    final services = discovery.services;
+
+    // Handle lost devices (track by name since host may not be resolved yet)
+    final currentNames = services.map((s) => s.name ?? '').toSet();
+    _devices.removeWhere((device) {
+      final lost = !currentNames.contains(device.name);
+      if (lost) onDeviceLost?.call(device);
+      return lost;
+    });
+
+    // Add/resolve new services
+    for (final service in services) {
+      final name = service.name ?? '';
+      final host = service.host; // String? in nsd v4
+      final port = service.port;
+
+      if (host != null && port != null) {
+        _tryAddDevice(name, host, port, service.txt);
+      } else if (name.isNotEmpty && !_resolving.contains(name)) {
+        _resolving.add(name);
+        nsd.resolve(service).then((resolved) {
+          _resolving.remove(name);
+          final rHost = resolved.host;
+          final rPort = resolved.port;
+          if (rHost != null && rPort != null) {
+            _tryAddDevice(resolved.name ?? name, rHost, rPort, resolved.txt);
+          }
+        }).catchError((e) {
+          _resolving.remove(name);
+          print('DiscoveryService: Resolve failed for $name - $e');
+        });
+      }
+    }
+  }
+
+  void _tryAddDevice(
+      String name, String host, int port, Map<String, Uint8List?>? txt) {
+    if (_devices.any((d) => d.host == host)) return;
+
+    final device = DiscoveredDevice(
+      name: name,
+      host: host,
+      port: port,
+      txt: _decodeTxt(txt),
+    );
+    _devices.add(device);
+    onDeviceDiscovered?.call(device);
+  }
+
+  Map<String, String> _decodeTxt(Map<String, Uint8List?>? txt) {
+    if (txt == null) return {};
+    return txt.map((k, v) => MapEntry(k, v != null ? String.fromCharCodes(v) : ''));
+  }
+
   /// Stop scanning
   Future<void> stopScanning() async {
-    if (!_isScanning) {
-      return;
+    if (_discovery != null) {
+      _discovery!.removeListener(_onServicesChanged);
+      await nsd.stopDiscovery(_discovery!);
+      _discovery = null;
     }
-
+    _resolving.clear();
     _isScanning = false;
     print('DiscoveryService: Stopped scanning');
   }
 
-  /// Get list of discovered devices
   List<DiscoveredDevice> get devices => List.unmodifiable(_devices);
-
-  /// Clear discovered devices
-  void clearDevices() {
-    _devices.clear();
-  }
-
-  /// Check if currently scanning
+  void clearDevices() => _devices.clear();
   bool get isScanning => _isScanning;
 
-  /// Cleanup resources
   void dispose() {
     stopScanning();
   }
@@ -82,17 +126,10 @@ class DiscoveredDevice {
     required this.txt,
   });
 
-  /// Get version from TXT record
   String? get version => txt['version'];
-
-  /// Get capabilities from TXT record
   String? get capabilities => txt['capabilities'];
 
-  /// Display name (PC name without service suffix)
-  String get displayName {
-    // Remove ._micstream._udp.local suffix if present
-    return name.split('.').first;
-  }
+  String get displayName => name.split('.').first;
 
   @override
   String toString() => '$displayName ($host:$port)';
