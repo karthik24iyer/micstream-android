@@ -20,9 +20,6 @@ class AudioStreamProvider with ChangeNotifier {
   bool _isScanning = false;
   List<DiscoveredDevice> _discoveredDevices = [];
 
-  // Phase 4: Noise suppression preference (persists across connect/disconnect)
-  bool _noiseSuppressed = true;
-
   // Statistics
   int _packetsSent = 0;
   int _bytesSent = 0;
@@ -41,22 +38,6 @@ class AudioStreamProvider with ChangeNotifier {
   int get packetsSent => _packetsSent;
   int get bytesSent => _bytesSent;
   bool get isStreaming => _connectionState == StreamConnectionState.connected;
-
-  /// Phase 4: Whether noise suppression is enabled
-  bool get isNoiseSuppressed => _noiseSuppressed;
-
-  /// Phase 4: Whether the RNNoise library was loaded (i.e. setup script was run)
-  bool get isNoiseSuppressAvailable => _streamManager.isNoiseSuppressAvailable;
-
-  // ─── Noise Suppression (Phase 4) ──────────────────────────────────────────
-
-  /// Toggle noise suppression on/off.
-  /// Updates the running pipeline immediately if streaming is active.
-  void toggleNoiseSuppression() {
-    _noiseSuppressed = !_noiseSuppressed;
-    _streamManager.noiseSuppressed = _noiseSuppressed;
-    notifyListeners();
-  }
 
   // ─── Connection ────────────────────────────────────────────────────────────
 
@@ -134,9 +115,6 @@ class AudioStreamProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Apply the current NS preference before the stream starts
-      _streamManager.noiseSuppressed = _noiseSuppressed;
-
       final success = await _streamManager.startStreaming(device.host);
       if (success) {
         _connectionState = StreamConnectionState.connected;

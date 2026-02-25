@@ -88,7 +88,7 @@ class AudioStreamManager {
       // Encode and send (await ensures sequential sending)
       final opusData = _opusEncoder.encode(cleanFrame);
       if (opusData != null && opusData.isNotEmpty) {
-        final nsActive = _noiseSuppress.isInitialized && _noiseSuppress.isEnabled;
+        final nsActive = _noiseSuppress.isInitialized;
         final success = await _udpSender.sendOpusPacket(opusData, noiseSuppressed: nsActive);
         if (success) {
           _packetsent++;
@@ -126,19 +126,6 @@ class AudioStreamManager {
       final avgBitrate = (_bytesSent * 8) / duration.inSeconds;
       print('  Avg bitrate: ${(avgBitrate / 1000).toStringAsFixed(1)} kbps');
     }
-  }
-
-  // ─── Noise Suppression Control (Phase 4) ─────────────────────────────────
-
-  /// Whether noise suppression is currently enabled
-  bool get isNoiseSuppressed => _noiseSuppress.isEnabled;
-
-  /// Whether the RNNoise library was loaded successfully
-  bool get isNoiseSuppressAvailable => _noiseSuppress.isInitialized;
-
-  /// Enable or disable noise suppression at runtime (takes effect immediately)
-  set noiseSuppressed(bool value) {
-    _noiseSuppress.enabled = value;
   }
 
   // ─── Status / Statistics ──────────────────────────────────────────────────

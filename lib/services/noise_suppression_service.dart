@@ -45,7 +45,6 @@ class NoiseSuppressionService {
   _RnnoiseProcessFrame? _fnProcessFrame;
 
   bool _isInitialized = false;
-  bool _enabled = true;
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -98,12 +97,6 @@ class NoiseSuppressionService {
   // ─── Properties ────────────────────────────────────────────────────────────
 
   bool get isInitialized => _isInitialized;
-  bool get isEnabled => _enabled;
-
-  set enabled(bool value) {
-    _enabled = value;
-    print('NoiseSuppressionService: ${value ? "Enabled" : "Disabled"}');
-  }
 
   // ─── Processing ────────────────────────────────────────────────────────────
 
@@ -114,7 +107,7 @@ class NoiseSuppressionService {
     assert(pcmData.length == 1920,
         'Expected 1920 bytes for a 20ms frame, got ${pcmData.length}');
 
-    if (!_isInitialized || !_enabled) return pcmData;
+    if (!_isInitialized) return pcmData;
 
     final first = _processFrame480(Uint8List.sublistView(pcmData, 0, 960));
     final second = _processFrame480(Uint8List.sublistView(pcmData, 960, 1920));
@@ -130,7 +123,7 @@ class NoiseSuppressionService {
     assert(pcmData.length == _frameSizeBytes,
         'Expected $_frameSizeBytes bytes, got ${pcmData.length}');
 
-    final inputPtr = calloc<Float>(_frameSize);
+    final inputPtr  = calloc<Float>(_frameSize);
     final outputPtr = calloc<Float>(_frameSize);
 
     try {
