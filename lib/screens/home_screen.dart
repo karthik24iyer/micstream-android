@@ -13,6 +13,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _permissionGranted = false;
+  bool _notificationGranted = true; // assume granted until checked
 
   @override
   void initState() {
@@ -31,6 +32,26 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _permissionGranted = result.isGranted;
       });
+    }
+
+    // Android 13+: request notification permission upfront so the
+    // foreground-service notification is visible while streaming.
+    final notifStatus = await Permission.notification.status;
+    if (notifStatus.isDenied) {
+      final result = await Permission.notification.request();
+      setState(() => _notificationGranted = result.isGranted);
+    } else {
+      setState(() => _notificationGranted = notifStatus.isGranted);
+    }
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    final status = await Permission.notification.status;
+    if (status.isPermanentlyDenied) {
+      await openAppSettings();
+    } else {
+      final result = await Permission.notification.request();
+      setState(() => _notificationGranted = result.isGranted);
     }
   }
 
@@ -124,11 +145,50 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
+
+                  if (!_notificationGranted) ...[
+                    const SizedBox(height: 12),
+                    _buildNotificationBanner(),
+                  ],
                 ],
               ),
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.yellow.withOpacity(0.08),
+        border: Border.all(color: Colors.yellow.withOpacity(0.3)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_off_outlined, color: Colors.yellow, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Allow notifications to keep streaming with screen off',
+              style: TextStyle(color: Colors.yellow.shade200, fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: _requestNotificationPermission,
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.yellow,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('Enable', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

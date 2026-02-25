@@ -3,6 +3,7 @@ import 'audio_capture_service.dart';
 import 'udp_sender_service.dart';
 import 'opus_encoder_service.dart';
 import 'noise_suppression_service.dart';
+import 'foreground_service.dart';
 
 /// AudioStreamManager - Orchestrates the audio capture → NS → Opus → UDP pipeline
 /// Phase 3: Opus compressed streaming (64kbps)
@@ -66,6 +67,9 @@ class AudioStreamManager {
     _packetsent = 0;
     _bytesSent = 0;
 
+    // Keep the app alive when screen is off / app is minimised
+    await ForegroundService.start();
+
     final nsStatus = _noiseSuppress.isInitialized ? 'NS ON' : 'NS unavailable';
     print('AudioStreamManager: Streaming started to $destinationAddress:$port (Opus 64kbps, $nsStatus)');
     return true;
@@ -109,6 +113,7 @@ class AudioStreamManager {
     await _udpSender.close();
     _opusEncoder.dispose();
     _noiseSuppress.dispose();
+    await ForegroundService.stop();
 
     _frameBuffer.clear();
     _isStreaming = false;
