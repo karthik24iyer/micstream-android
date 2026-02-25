@@ -44,6 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Phase 4: RNNoise source — downloaded by scripts/setup_rnnoise.sh (not committed)
+/android/app/src/main/cpp/rnnoise/
+
 /macos/
 /linux/
 /ios/

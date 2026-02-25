@@ -88,7 +88,8 @@ class UdpSenderService {
 
   /// Send Opus audio packet with extended header
   /// Phase 3 format: [seq(4)][timestamp(4)][flags(1)][opus_data]
-  Future<bool> sendOpusPacket(Uint8List opusData) async {
+  /// flags bit 0: noise suppression active
+  Future<bool> sendOpusPacket(Uint8List opusData, {bool noiseSuppressed = false}) async {
     if (!_isInitialized || _socket == null) {
       print('UdpSenderService: Socket not initialized');
       return false;
@@ -110,8 +111,8 @@ class UdpSenderService {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       packet.add(_uint32ToBytes(timestamp));
 
-      // Add flags (1 byte) - Bit 0: Noise suppression (0=disabled for Phase 3)
-      packet.addByte(0x00);
+      // Add flags (1 byte) - Bit 0: noise suppression active
+      packet.addByte(noiseSuppressed ? 0x01 : 0x00);
 
       // Add Opus audio data
       packet.add(opusData);

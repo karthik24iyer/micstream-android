@@ -2,13 +2,16 @@ import 'dart:typed_data';
 import 'audio_capture_service.dart';
 import 'udp_sender_service.dart';
 import 'opus_encoder_service.dart';
+import 'noise_suppression_service.dart';
 
-/// AudioStreamManager - Orchestrates the audio capture → Opus encoding → UDP pipeline
+/// AudioStreamManager - Orchestrates the audio capture → NS → Opus → UDP pipeline
 /// Phase 3: Opus compressed streaming (64kbps)
+/// Phase 4: RNNoise noise suppression inserted before Opus encoding
 class AudioStreamManager {
   final AudioCaptureService _audioCapture = AudioCaptureService();
   final UdpSenderService _udpSender = UdpSenderService();
   final OpusEncoderService _opusEncoder = OpusEncoderService();
+  final NoiseSuppressionService _noiseSuppress = NoiseSuppressionService();
 
   bool _isStreaming = false;
 
@@ -33,9 +36,16 @@ class AudioStreamManager {
       return false;
     }
 
+    // Phase 4: initialize RNNoise (non-fatal — streaming works without it)
+    final nsReady = await _noiseSuppress.initialize();
+    if (!nsReady) {
+      print('AudioStreamManager: Noise suppression unavailable — streaming without NS');
+    }
+
     if (!await _udpSender.initialize()) {
       print('AudioStreamManager: Failed to initialize UDP sender');
       _opusEncoder.dispose();
+      _noiseSuppress.dispose();
       return false;
     }
 
@@ -47,6 +57,7 @@ class AudioStreamManager {
       print('AudioStreamManager: Failed to start audio capture');
       await _udpSender.close();
       _opusEncoder.dispose();
+      _noiseSuppress.dispose();
       return false;
     }
 
@@ -55,26 +66,30 @@ class AudioStreamManager {
     _packetsent = 0;
     _bytesSent = 0;
 
-    print('AudioStreamManager: Streaming started to $destinationAddress:$port (Opus 64kbps)');
+    final nsStatus = _noiseSuppress.isInitialized ? 'NS ON' : 'NS unavailable';
+    print('AudioStreamManager: Streaming started to $destinationAddress:$port (Opus 64kbps, $nsStatus)');
     return true;
   }
 
-  /// Handle audio data from capture service — buffer and encode as Opus
+  /// Handle audio data from capture service — buffer, denoise, encode, send
   Future<void> _handleAudioData(Uint8List pcmData) async {
     // Add incoming data to buffer
     _frameBuffer.addAll(pcmData);
 
-    // Process ALL complete frames (1920 bytes = 960 samples = 20ms each)
-    // await ensures sequential sending without flooding
+    // Process ALL complete 20ms frames
     while (_frameBuffer.length >= _opusFrameSize) {
-      // Extract one frame
+      // Extract one 960-sample frame
       final frameData = Uint8List.fromList(_frameBuffer.sublist(0, _opusFrameSize));
       _frameBuffer.removeRange(0, _opusFrameSize);
 
-      // Encode and send (await to ensure sequential sending)
-      final opusData = _opusEncoder.encode(frameData);
+      // Phase 4: apply noise suppression before Opus encoding
+      final cleanFrame = _noiseSuppress.processOpusFrame(frameData);
+
+      // Encode and send (await ensures sequential sending)
+      final opusData = _opusEncoder.encode(cleanFrame);
       if (opusData != null && opusData.isNotEmpty) {
-        final success = await _udpSender.sendOpusPacket(opusData);
+        final nsActive = _noiseSuppress.isInitialized && _noiseSuppress.isEnabled;
+        final success = await _udpSender.sendOpusPacket(opusData, noiseSuppressed: nsActive);
         if (success) {
           _packetsent++;
           // Opus packet: 4 (seq) + 4 (timestamp) + 1 (flags) + opus_data (~160 bytes)
@@ -93,6 +108,7 @@ class AudioStreamManager {
     await _audioCapture.stopCapture();
     await _udpSender.close();
     _opusEncoder.dispose();
+    _noiseSuppress.dispose();
 
     _frameBuffer.clear();
     _isStreaming = false;
@@ -112,16 +128,24 @@ class AudioStreamManager {
     }
   }
 
-  /// Get streaming status
+  // ─── Noise Suppression Control (Phase 4) ─────────────────────────────────
+
+  /// Whether noise suppression is currently enabled
+  bool get isNoiseSuppressed => _noiseSuppress.isEnabled;
+
+  /// Whether the RNNoise library was loaded successfully
+  bool get isNoiseSuppressAvailable => _noiseSuppress.isInitialized;
+
+  /// Enable or disable noise suppression at runtime (takes effect immediately)
+  set noiseSuppressed(bool value) {
+    _noiseSuppress.enabled = value;
+  }
+
+  // ─── Status / Statistics ──────────────────────────────────────────────────
+
   bool get isStreaming => _isStreaming;
-
-  /// Get packets sent
   int get packetsSent => _packetsent;
-
-  /// Get bytes sent
   int get bytesSent => _bytesSent;
-
-  /// Get current sequence number
   int get sequenceNumber => _udpSender.sequenceNumber;
 
   /// Cleanup resources

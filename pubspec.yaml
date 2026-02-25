@@ -48,6 +48,9 @@ dependencies:
   opus_flutter: ^3.0.3        # Opus library loader
   opus_dart: ^3.0.1           # Opus audio encoding
 
+  # Phase 4 dependencies
+  ffi: ^2.1.0                 # Dart FFI allocators (calloc) for RNNoise bindings
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

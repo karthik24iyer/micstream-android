@@ -5,6 +5,7 @@ import '../services/discovery_service.dart';
 /// StreamProvider - State management for audio streaming
 /// Phase 1: Basic connection state and statistics
 /// Phase 2: mDNS service discovery
+/// Phase 4: Noise suppression toggle
 class AudioStreamProvider with ChangeNotifier {
   final AudioStreamManager _streamManager = AudioStreamManager();
   final DiscoveryService _discoveryService = DiscoveryService();
@@ -19,36 +20,45 @@ class AudioStreamProvider with ChangeNotifier {
   bool _isScanning = false;
   List<DiscoveredDevice> _discoveredDevices = [];
 
+  // Phase 4: Noise suppression preference (persists across connect/disconnect)
+  bool _noiseSuppressed = true;
+
   // Statistics
   int _packetsSent = 0;
   int _bytesSent = 0;
 
-  /// Get current connection state
+  // ─── Getters ───────────────────────────────────────────────────────────────
+
   StreamConnectionState get connectionState => _connectionState;
-
-  /// Get destination address
   String? get destinationAddress => _destinationAddress;
-
-  /// Get destination name
   String? get destinationName => _destinationName;
-
-  /// Get error message
   String? get errorMessage => _errorMessage;
 
-  /// Get discovery scanning status (Phase 2)
   bool get isScanning => _isScanning;
+  List<DiscoveredDevice> get discoveredDevices =>
+      List.unmodifiable(_discoveredDevices);
 
-  /// Get discovered devices (Phase 2)
-  List<DiscoveredDevice> get discoveredDevices => List.unmodifiable(_discoveredDevices);
-
-  /// Get packets sent
   int get packetsSent => _packetsSent;
-
-  /// Get bytes sent
   int get bytesSent => _bytesSent;
-
-  /// Get streaming status
   bool get isStreaming => _connectionState == StreamConnectionState.connected;
+
+  /// Phase 4: Whether noise suppression is enabled
+  bool get isNoiseSuppressed => _noiseSuppressed;
+
+  /// Phase 4: Whether the RNNoise library was loaded (i.e. setup script was run)
+  bool get isNoiseSuppressAvailable => _streamManager.isNoiseSuppressAvailable;
+
+  // ─── Noise Suppression (Phase 4) ──────────────────────────────────────────
+
+  /// Toggle noise suppression on/off.
+  /// Updates the running pipeline immediately if streaming is active.
+  void toggleNoiseSuppression() {
+    _noiseSuppressed = !_noiseSuppressed;
+    _streamManager.noiseSuppressed = _noiseSuppressed;
+    notifyListeners();
+  }
+
+  // ─── Connection ────────────────────────────────────────────────────────────
 
   /// Disconnect and stop streaming
   Future<void> disconnect() async {
@@ -72,7 +82,6 @@ class AudioStreamProvider with ChangeNotifier {
         return false;
       }
 
-      // Update statistics every second
       await Future.delayed(const Duration(seconds: 1));
 
       if (_connectionState == StreamConnectionState.connected) {
@@ -85,23 +94,18 @@ class AudioStreamProvider with ChangeNotifier {
     });
   }
 
-  // ========== Phase 2: Discovery Methods ==========
+  // ─── Phase 2: Discovery ────────────────────────────────────────────────────
 
-  /// Start scanning for devices (Phase 2)
   Future<bool> startScanning() async {
-    if (_isScanning) {
-      return true;
-    }
+    if (_isScanning) return true;
 
     _discoveredDevices.clear();
     notifyListeners();
 
-    // Set up callbacks
     _discoveryService.onDeviceDiscovered = (device) {
       if (!_discoveredDevices.any((d) => d.host == device.host)) {
         _discoveredDevices.add(device);
         notifyListeners();
-        // Auto-stop scanning once a device is found
         stopScanning();
       }
     };
@@ -109,18 +113,15 @@ class AudioStreamProvider with ChangeNotifier {
     final success = await _discoveryService.startDiscovery();
     _isScanning = success;
     notifyListeners();
-
     return success;
   }
 
-  /// Stop scanning (Phase 2)
   Future<void> stopScanning() async {
     await _discoveryService.stopScanning();
     _isScanning = false;
     notifyListeners();
   }
 
-  /// Connect to a discovered device
   Future<bool> connectToDevice(DiscoveredDevice device) async {
     if (_connectionState == StreamConnectionState.connected) return true;
 
@@ -133,6 +134,9 @@ class AudioStreamProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Apply the current NS preference before the stream starts
+      _streamManager.noiseSuppressed = _noiseSuppressed;
+
       final success = await _streamManager.startStreaming(device.host);
       if (success) {
         _connectionState = StreamConnectionState.connected;

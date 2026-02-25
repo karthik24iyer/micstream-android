@@ -102,7 +102,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   _buildDiscoveryMode(streamProvider),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
+
+                  // Phase 4: Noise suppression toggle
+                  _buildNoiseSuppressionToggle(streamProvider),
+
+                  const SizedBox(height: 16),
 
                   if (!_permissionGranted)
                     Container(
@@ -263,6 +268,73 @@ class _HomeScreenState extends State<HomeScreen> {
               color: statusColor, fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ],
+    );
+  }
+
+  // ─── Phase 4: Noise Suppression Toggle ────────────────────────────────────
+
+  Widget _buildNoiseSuppressionToggle(AudioStreamProvider provider) {
+    final isEnabled = provider.isNoiseSuppressed;
+    final isAvailable = provider.isNoiseSuppressAvailable;
+
+    // Show a subtle "unavailable" hint when the .so hasn't been compiled yet
+    final String subtitle = isAvailable
+        ? (isEnabled ? 'Keyboard & fan noise reduced' : 'Off — raw audio sent')
+        : 'Run scripts/setup_rnnoise to enable';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isEnabled && isAvailable
+              ? Colors.cyan.withOpacity(0.3)
+              : Colors.white.withOpacity(0.08),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.noise_control_off,
+            color: isEnabled && isAvailable
+                ? Colors.cyan
+                : Colors.white.withOpacity(0.4),
+            size: 22,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Noise Suppression',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.4),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: isEnabled,
+            onChanged: (_) => provider.toggleNoiseSuppression(),
+            activeColor: Colors.cyan,
+            inactiveThumbColor: Colors.white.withOpacity(0.4),
+            inactiveTrackColor: Colors.white.withOpacity(0.1),
+          ),
+        ],
+      ),
     );
   }
 }
