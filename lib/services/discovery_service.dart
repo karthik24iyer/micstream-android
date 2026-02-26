@@ -14,7 +14,7 @@ class DiscoveryService {
 
   bool _isScanning = false;
 
-  /// Start scanning for MicStream services
+  /// Start scanning for MicQ services
   Future<bool> startDiscovery() async {
     if (_isScanning) return true;
 

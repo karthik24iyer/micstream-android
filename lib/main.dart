@@ -6,7 +6,7 @@ import 'package:opus_flutter/opus_flutter.dart' as opus_flutter;
 import 'providers/stream_provider.dart';
 import 'screens/home_screen.dart';
 
-/// MicStream - Phase 3: Opus Compressed Streaming
+/// MicQ - Phase 3: Opus Compressed Streaming
 /// Streams Opus-encoded audio from Android to Windows PC
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,18 +35,18 @@ void main() async {
     ),
   );
 
-  runApp(const MicStreamApp());
+  runApp(const MicQApp());
 }
 
-class MicStreamApp extends StatelessWidget {
-  const MicStreamApp({super.key});
+class MicQApp extends StatelessWidget {
+  const MicQApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AudioStreamProvider(),
       child: MaterialApp(
-        title: 'MicStream',
+        title: 'MicQ',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           brightness: Brightness.dark,

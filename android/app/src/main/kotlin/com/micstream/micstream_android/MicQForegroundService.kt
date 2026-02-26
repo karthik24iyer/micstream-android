@@ -10,7 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 
-class MicStreamForegroundService : Service() {
+class MicQForegroundService : Service() {
 
     companion object {
         const val ACTION_START = "ACTION_START"
@@ -44,7 +44,7 @@ class MicStreamForegroundService : Service() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("MicStream")
+            .setContentTitle("MicQ")
             .setContentText("Streaming microphone audio…")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(pendingIntent)
@@ -64,10 +64,10 @@ class MicStreamForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "MicStream Recording",
+                "MicQ Recording",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Shown while MicStream is streaming audio"
+                description = "Shown while MicQ is streaming audio"
                 setShowBadge(false)
             }
             getSystemService(NotificationManager::class.java)

@@ -17,8 +17,8 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "start" -> {
-                        val intent = Intent(this, MicStreamForegroundService::class.java).apply {
-                            action = MicStreamForegroundService.ACTION_START
+                        val intent = Intent(this, MicQForegroundService::class.java).apply {
+                            action = MicQForegroundService.ACTION_START
                         }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             startForegroundService(intent)
@@ -28,8 +28,8 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "stop" -> {
-                        val intent = Intent(this, MicStreamForegroundService::class.java).apply {
-                            action = MicStreamForegroundService.ACTION_STOP
+                        val intent = Intent(this, MicQForegroundService::class.java).apply {
+                            action = MicQForegroundService.ACTION_STOP
                         }
                         startService(intent)
                         result.success(null)

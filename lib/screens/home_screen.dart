@@ -106,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'MicStream',
+                    'MicQ',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 48,

@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:label="MicStream"
+        android:label="MicQ"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -33,7 +33,7 @@
             </intent-filter>
         </activity>
         <service
-            android:name=".MicStreamForegroundService"
+            android:name=".MicQForegroundService"
             android:foregroundServiceType="microphone"
             android:exported="false" />
 

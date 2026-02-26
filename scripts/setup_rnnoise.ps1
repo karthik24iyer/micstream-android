@@ -9,7 +9,7 @@ $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
 $TargetDir  = Join-Path $ProjectDir "android\app\src\main\cpp\rnnoise"
 
-Write-Host "MicStream - Phase 4: RNNoise setup"
+Write-Host "MicQ - Phase 4: RNNoise setup"
 Write-Host "Target: $TargetDir"
 
 if (Test-Path (Join-Path $TargetDir ".git")) {

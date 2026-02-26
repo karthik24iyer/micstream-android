@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 TARGET_DIR="$PROJECT_DIR/android/app/src/main/cpp/rnnoise"
 
-echo "MicStream — Phase 4: RNNoise setup"
+echo "MicQ — Phase 4: RNNoise setup"
 echo "Target: $TARGET_DIR"
 
 if [ -d "$TARGET_DIR/.git" ]; then
